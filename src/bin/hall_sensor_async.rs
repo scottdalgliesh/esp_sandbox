@@ -59,11 +59,11 @@ async fn output_manager(
         match receiver.recv().await {
             SensorEvent::Closed(n) => {
                 outputs[n as usize].set_low().unwrap();
-                println!("CLOSED")
+                println!("SENSOR {n}: CLOSED")
             }
             SensorEvent::Released(n) => {
                 outputs[n as usize].set_high().unwrap();
-                println!("OPEN")
+                println!("SENSOR {n}: OPEN")
             }
         }
     }
@@ -113,12 +113,12 @@ async fn main(spawner: embassy_executor::Spawner) {
         io.pins.gpio2.into_push_pull_output().degrade(),
         io.pins.gpio3.into_push_pull_output().degrade(),
     ];
-    for (hall, led) in hall_sensors.iter().zip(leds.iter_mut()) {
+    for (i, (hall, led)) in hall_sensors.iter().zip(leds.iter_mut()).enumerate() {
         if hall.is_high().unwrap() {
-            println!("Initial state: OPEN");
+            println!("Sensor {i} initial state: OPEN");
             led.set_high().unwrap();
         } else {
-            println!("Initial state: CLOSED");
+            println!("Sensor {i} initial state: CLOSED");
             led.set_low().unwrap();
         }
     }
