@@ -1,7 +1,9 @@
-// Async test of hall sensor with indicator LED on ESP32C3
+// Async test of multiple hall sensors with indicator LEDs on ESP32C3
 // Connections:
-// hall sensor: GPIO 8
-// LED: GPIO 2
+//      hall sensor 1: GPIO 8
+//      hall sensor 2: GPIO 20
+//      LED 1: GPIO 2
+//      LED 2: GPIO 3
 
 #![no_std]
 #![no_main]
@@ -15,7 +17,7 @@ use esp_println::println;
 use hal::{
     clock::{ClockControl, CpuClock},
     embassy,
-    gpio::{Gpio2, Gpio8, Input, Output, PullUp, PushPull, IO},
+    gpio::{AnyPin, Input, Output, PullUp, PushPull, IO},
     peripherals::Peripherals,
     prelude::*,
     timer::TimerGroup,
@@ -31,9 +33,9 @@ enum SensorEvent {
     Released(u8),
 }
 
-#[embassy_executor::task(pool_size = 1)]
+#[embassy_executor::task(pool_size = 2)]
 async fn sensor_watcher(
-    mut sensor: Gpio8<Input<PullUp>>,
+    mut sensor: AnyPin<Input<PullUp>>,
     sensor_id: u8,
     sender: Sender<'static, CriticalSectionRawMutex, SensorEvent, 1>,
 ) {
@@ -50,20 +52,19 @@ async fn sensor_watcher(
 
 #[embassy_executor::task(pool_size = 1)]
 async fn output_manager(
-    mut output: Gpio2<Output<PushPull>>,
+    mut outputs: [AnyPin<Output<PushPull>>; 2],
     receiver: Receiver<'static, CriticalSectionRawMutex, SensorEvent, 1>,
 ) {
     loop {
         match receiver.recv().await {
-            SensorEvent::Closed(1) => {
-                output.set_low().unwrap();
+            SensorEvent::Closed(n) => {
+                outputs[n as usize].set_low().unwrap();
                 println!("CLOSED")
             }
-            SensorEvent::Released(1) => {
-                output.set_high().unwrap();
+            SensorEvent::Released(n) => {
+                outputs[n as usize].set_high().unwrap();
                 println!("OPEN")
             }
-            _ => (),
         }
     }
 }
@@ -102,16 +103,24 @@ async fn main(spawner: embassy_executor::Spawner) {
     );
 
     // Initialize hall sensor
-    let hall = io.pins.gpio8.into_pull_up_input();
+    let hall_sensors = [
+        io.pins.gpio8.into_pull_up_input().degrade(),
+        io.pins.gpio20.into_pull_up_input().degrade(),
+    ];
 
-    // Initialize led
-    let mut led = io.pins.gpio2.into_push_pull_output();
-    if hall.is_high().unwrap() {
-        println!("Initial state: OPEN");
-        led.set_high().unwrap();
-    } else {
-        println!("Initial state: CLOSED");
-        led.set_low().unwrap();
+    // Initialize leds
+    let mut leds = [
+        io.pins.gpio2.into_push_pull_output().degrade(),
+        io.pins.gpio3.into_push_pull_output().degrade(),
+    ];
+    for (hall, led) in hall_sensors.iter().zip(leds.iter_mut()) {
+        if hall.is_high().unwrap() {
+            println!("Initial state: OPEN");
+            led.set_high().unwrap();
+        } else {
+            println!("Initial state: CLOSED");
+            led.set_low().unwrap();
+        }
     }
 
     // Async requires the GPIO interrupt to wake futures
@@ -124,11 +133,15 @@ async fn main(spawner: embassy_executor::Spawner) {
     let sender = CHANNEL.sender();
     let receiver = CHANNEL.receiver();
 
+    // initialize async tasks
+    for (i, hall) in hall_sensors.into_iter().enumerate() {
+        spawner
+            .spawn(sensor_watcher(hall, i as u8, sender.clone()))
+            .unwrap();
+    }
     spawner
-        .spawn(sensor_watcher(hall, 1, sender.clone()))
+        .spawn(output_manager(leds, receiver.clone()))
         .unwrap();
-    spawner
-        .spawn(output_manager(led, receiver.clone()))
-        .unwrap();
+
     println!("Tasks initialized")
 }
