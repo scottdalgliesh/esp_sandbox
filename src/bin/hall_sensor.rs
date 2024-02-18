@@ -8,7 +8,7 @@
 
 use esp_backtrace as _;
 use esp_println::println;
-use hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay, Rtc};
+use hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay};
 
 #[entry]
 fn main() -> ! {
@@ -18,10 +18,6 @@ fn main() -> ! {
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
     let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
     let mut delay = Delay::new(&clocks);
-
-    // Disable the RTC watchdog timer
-    let mut rtc = Rtc::new(peripherals.RTC_CNTL);
-    rtc.rwdt.disable();
     println!("Hello world!");
 
     // Initialize led

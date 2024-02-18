@@ -9,6 +9,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+use embedded_hal_async::digital::Wait;
 use embassy_sync::channel::{Channel, Sender};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
 use embassy_time::{Duration, Timer};
@@ -20,8 +21,6 @@ use hal::{
     gpio::{AnyPin, Input, Output, PullUp, PushPull, IO},
     peripherals::Peripherals,
     prelude::*,
-    timer::TimerGroup,
-    Rtc,
 };
 
 static CHANNEL: Channel<CriticalSectionRawMutex, SensorEvent, 1> = Channel::new();
@@ -56,7 +55,7 @@ async fn output_manager(
     receiver: Receiver<'static, CriticalSectionRawMutex, SensorEvent, 1>,
 ) {
     loop {
-        match receiver.recv().await {
+        match receiver.receive().await {
             SensorEvent::Closed(n) => {
                 outputs[n as usize].set_low().unwrap();
                 println!("SENSOR {n}: CLOSED")
@@ -73,29 +72,9 @@ async fn output_manager(
 async fn main(spawner: embassy_executor::Spawner) {
     // Initialize hardware
     let peripherals = Peripherals::take();
-    let mut system = peripherals.SYSTEM.split();
+    let system = peripherals.SYSTEM.split();
     let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock80MHz).freeze();
     let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-
-    let mut rtc = Rtc::new(peripherals.RTC_CNTL);
-    let timer_group0 = TimerGroup::new(
-        peripherals.TIMG0,
-        &clocks,
-        &mut system.peripheral_clock_control,
-    );
-    let mut wdt0 = timer_group0.wdt;
-    let timer_group1 = TimerGroup::new(
-        peripherals.TIMG1,
-        &clocks,
-        &mut system.peripheral_clock_control,
-    );
-    let mut wdt1 = timer_group1.wdt;
-
-    // disable watchdog timers
-    rtc.swd.disable();
-    rtc.rwdt.disable();
-    wdt0.disable();
-    wdt1.disable();
 
     embassy::init(
         &clocks,
