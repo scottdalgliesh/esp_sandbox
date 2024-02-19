@@ -1,7 +1,8 @@
-// Simple test of hall sensor with indicator LED on ESP32C3
-// Connections:
-// hall sensor: GPIO 8
-// LED: GPIO 2
+//! Simple test of hall sensor with indicator LED on ESP32C3
+//! 
+//! Connections List (see schematic for details)
+//! - GPIO 2: LED
+//! - GPIO 8: hall effect sensor
 
 #![no_std]
 #![no_main]

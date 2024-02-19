@@ -1,3 +1,8 @@
+//! Simple demo flashing an LED on ESP32C3
+//! 
+//! Connections List (see schematic for details)
+//! - GPIO0: LED
+
 #![no_std]
 #![no_main]
 
@@ -16,7 +21,7 @@ fn main() -> ! {
     println!("Hello world!");
 
     // Initialize led
-    let mut led = io.pins.gpio2.into_push_pull_output();
+    let mut led = io.pins.gpio0.into_push_pull_output();
     led.set_high().unwrap();
 
     // Event loop

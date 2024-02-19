@@ -1,9 +1,10 @@
-// Async test of multiple hall sensors with indicator LEDs on ESP32C3
-// Connections:
-//      hall sensor 1: GPIO 8
-//      hall sensor 2: GPIO 20
-//      LED 1: GPIO 2
-//      LED 2: GPIO 3
+//! Async test of multiple hall sensors with indicator LEDs on ESP32C3
+//! 
+//! Connections List (see schematic for details)
+//! - GPIO 2: LED 1
+//! - GPIO 3: LED 2
+//! - GPIO 8: hall effect sensor 1
+//! - GPIO 20: hall effect sensor 2
 
 #![no_std]
 #![no_main]
