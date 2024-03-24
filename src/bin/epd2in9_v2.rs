@@ -27,8 +27,7 @@ use epd_waveshare::{
     prelude::*,
 };
 use esp_backtrace as _;
-use esp_println::println;
-use hal::{
+use esp_hal::{
     clock::ClockControl,
     gpio::IO,
     peripherals::Peripherals,
@@ -36,6 +35,7 @@ use hal::{
     spi::{master::Spi, SpiMode},
     Delay,
 };
+use esp_println::println;
 
 fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
     let style = MonoTextStyleBuilder::new()

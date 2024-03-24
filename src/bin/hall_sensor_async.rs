@@ -1,5 +1,5 @@
 //! Async test of multiple hall sensors with indicator LEDs on ESP32C3
-//! 
+//!
 //! Connections List (see schematic for details)
 //! - GPIO 2: LED 1
 //! - GPIO 3: LED 2
@@ -10,19 +10,19 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-use embedded_hal_async::digital::Wait;
 use embassy_sync::channel::{Channel, Sender};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
 use embassy_time::{Duration, Timer};
+use embedded_hal_async::digital::Wait;
 use esp_backtrace as _;
-use esp_println::println;
-use hal::{
+use esp_hal::{
     clock::{ClockControl, CpuClock},
     embassy,
     gpio::{AnyPin, Input, Output, PullUp, PushPull, IO},
     peripherals::Peripherals,
     prelude::*,
 };
+use esp_println::println;
 
 static CHANNEL: Channel<CriticalSectionRawMutex, SensorEvent, 1> = Channel::new();
 const DEBOUNCE_DELAY_MS: u64 = 1;
@@ -79,19 +79,19 @@ async fn main(spawner: embassy_executor::Spawner) {
 
     embassy::init(
         &clocks,
-        hal::systimer::SystemTimer::new(peripherals.SYSTIMER),
+        esp_hal::systimer::SystemTimer::new(peripherals.SYSTIMER),
     );
 
     // Initialize hall sensor
-    let hall_sensors = [
-        io.pins.gpio8.into_pull_up_input().degrade(),
-        io.pins.gpio20.into_pull_up_input().degrade(),
+    let hall_sensors: [AnyPin<Input<PullUp>>; 2] = [
+        io.pins.gpio8.into_pull_up_input().into(),
+        io.pins.gpio20.into_pull_up_input().into(),
     ];
 
     // Initialize leds
-    let mut leds = [
-        io.pins.gpio2.into_push_pull_output().degrade(),
-        io.pins.gpio3.into_push_pull_output().degrade(),
+    let mut leds: [AnyPin<Output<PushPull>>; 2] = [
+        io.pins.gpio2.into_push_pull_output().into(),
+        io.pins.gpio3.into_push_pull_output().into(),
     ];
     for (i, (hall, led)) in hall_sensors.iter().zip(leds.iter_mut()).enumerate() {
         if hall.is_high().unwrap() {
@@ -104,9 +104,9 @@ async fn main(spawner: embassy_executor::Spawner) {
     }
 
     // Async requires the GPIO interrupt to wake futures
-    hal::interrupt::enable(
-        hal::peripherals::Interrupt::GPIO,
-        hal::interrupt::Priority::Priority1,
+    esp_hal::interrupt::enable(
+        esp_hal::peripherals::Interrupt::GPIO,
+        esp_hal::interrupt::Priority::Priority1,
     )
     .unwrap();
 

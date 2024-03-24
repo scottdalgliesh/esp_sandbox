@@ -1,5 +1,5 @@
 //! Simple test of hall sensor with indicator LED on ESP32C3
-//! 
+//!
 //! Connections List (see schematic for details)
 //! - GPIO 2: LED
 //! - GPIO 8: hall effect sensor
@@ -8,8 +8,8 @@
 #![no_main]
 
 use esp_backtrace as _;
+use esp_hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay};
 use esp_println::println;
-use hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay};
 
 #[entry]
 fn main() -> ! {

@@ -1,13 +1,13 @@
 //! Simple demo flashing an LED on ESP32C3
-//! 
+//!
 //! Connections List (see schematic for details)
 //! - GPIO0: LED
 
 #![no_std]
 #![no_main]
 
-use hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay};
 use esp_backtrace as _;
+use esp_hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay};
 use esp_println::println;
 
 #[entry]
