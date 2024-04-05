@@ -23,7 +23,6 @@ use embedded_graphics::{
 use embedded_hal_bus::spi::ExclusiveDevice;
 use epd_waveshare::{
     epd2in9_v2::{Display2in9, Epd2in9},
-    graphics::DisplayRotation,
     prelude::*,
 };
 use esp_backtrace as _;
@@ -89,7 +88,7 @@ fn main() -> ! {
     epd.update_frame(&mut spi_device, display.buffer(), &mut delay)
         .unwrap();
     epd.display_frame(&mut spi_device, &mut delay).unwrap();
-    delay.delay_ms(1_000 as u32);
+    delay.delay_ms(1_000_u32);
 
     // Clock graphic demo
     println!("Begin clock graphics demo");
@@ -107,7 +106,7 @@ fn main() -> ! {
         .draw(&mut display);
     epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)
         .unwrap();
-    delay.delay_ms(1_000 as u32);
+    delay.delay_ms(1_000_u32);
 
     // Partial refresh demo - moving message
     println!("Begin partial quick refresh demo - moving message");
@@ -119,7 +118,7 @@ fn main() -> ! {
         epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)
             .unwrap();
     }
-    delay.delay_ms(1_000 as u32);
+    delay.delay_ms(1_000_u32);
 
     // Partial refresh demo - spinner
     println!("Begin spinner demo");
@@ -130,7 +129,7 @@ fn main() -> ! {
         epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)
             .unwrap();
     }
-    delay.delay_ms(1_000 as u32);
+    delay.delay_ms(1_000_u32);
 
     // display complete message and enter sleep
     println!("Complete");
@@ -139,5 +138,9 @@ fn main() -> ! {
     epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)
         .unwrap();
     epd.sleep(&mut spi_device, &mut delay).unwrap();
-    loop {}
+
+    // sleep
+    loop {
+        delay.delay_ms(1_000_u32);
+    }
 }

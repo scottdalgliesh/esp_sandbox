@@ -116,12 +116,10 @@ async fn main(spawner: embassy_executor::Spawner) {
     // initialize async tasks
     for (i, hall) in hall_sensors.into_iter().enumerate() {
         spawner
-            .spawn(sensor_watcher(hall, i as u8, sender.clone()))
+            .spawn(sensor_watcher(hall, i as u8, sender))
             .unwrap();
     }
-    spawner
-        .spawn(output_manager(leds, receiver.clone()))
-        .unwrap();
+    spawner.spawn(output_manager(leds, receiver)).unwrap();
 
     println!("Tasks initialized")
 }
