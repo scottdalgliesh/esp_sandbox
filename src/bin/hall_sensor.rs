@@ -8,39 +8,39 @@
 #![no_main]
 
 use esp_backtrace as _;
-use esp_hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay};
+use esp_hal::{
+    delay::Delay,
+    gpio::{Input, Io, Level, Output, Pull},
+    prelude::*,
+};
 use esp_println::println;
 
 #[entry]
 fn main() -> ! {
     // Initialize hardware
-    let peripherals = Peripherals::take();
-    let system = peripherals.SYSTEM.split();
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    let mut delay = Delay::new(&clocks);
-    println!("Hello world!");
+    let peripherals = esp_hal::init(esp_hal::Config::default());
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let delay = Delay::new();
 
     // Initialize led
-    let mut led = io.pins.gpio2.into_push_pull_output();
-    led.set_low().unwrap();
+    let mut led = Output::new(io.pins.gpio2, Level::Low);
 
     // Initialize hall sensor
-    let hall = io.pins.gpio8.into_pull_up_input();
+    let hall = Input::new(io.pins.gpio8, Pull::Up);
 
     // Event loop
     loop {
-        let hall_status = match hall.is_low().unwrap() {
+        let hall_status = match hall.is_low() {
             true => {
-                led.set_low().unwrap();
+                led.set_low();
                 "CLOSED"
             }
             false => {
-                led.set_high().unwrap();
+                led.set_high();
                 "OPEN"
             }
         };
         println!("HALL SENSOR: {hall_status}");
-        delay.delay_ms(500u32);
+        delay.delay_millis(500);
     }
 }

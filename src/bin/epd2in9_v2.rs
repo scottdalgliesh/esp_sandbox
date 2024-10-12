@@ -8,6 +8,7 @@
 //! - GPIO 9: DC
 //! - GPIO 10: MOSI (DIN)
 //! - GPIO 20: CS
+//!
 //! SPI connections above correspond to pinout of seeed studio xiao esp32c3
 
 #![no_std]
@@ -27,12 +28,10 @@ use epd_waveshare::{
 };
 use esp_backtrace as _;
 use esp_hal::{
-    clock::ClockControl,
-    gpio::IO,
-    peripherals::Peripherals,
+    delay::Delay,
+    gpio::{Input, Io, Level, Output, Pull},
     prelude::*,
     spi::{master::Spi, SpiMode},
-    Delay,
 };
 use esp_println::println;
 
@@ -56,26 +55,24 @@ fn draw_rotated_text(display: &mut Display2in9, text: &str, rotation: DisplayRot
 #[entry]
 fn main() -> ! {
     // Initialize hardware
-    let peripherals = Peripherals::take();
-    let system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    let mut delay = Delay::new(&clocks);
+    let peripherals = esp_hal::init(esp_hal::Config::default());
+    let mut delay = Delay::new();
 
     // Identify pins
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let sck = io.pins.gpio8.into_push_pull_output();
-    let mosi = io.pins.gpio10.into_push_pull_output();
-    let cs = io.pins.gpio20.into_push_pull_output();
-    let dc = io.pins.gpio9.into_push_pull_output();
-    let busy = io.pins.gpio3.into_floating_input();
-    let rst = io.pins.gpio2.into_push_pull_output();
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let sck = io.pins.gpio8;
+    let mosi = io.pins.gpio10;
+    let cs = Output::new(io.pins.gpio20, Level::Low);
+    let dc = Output::new(io.pins.gpio9, Level::Low);
+    let busy = Input::new(io.pins.gpio3, Pull::None);
+    let rst = Output::new(io.pins.gpio2, Level::Low);
 
     // Initialize SPI & EPD
     println!("Initializing display");
-    let spi = Spi::new(peripherals.SPI2, 8u32.MHz(), SpiMode::Mode0, &clocks)
+    let spi = Spi::new(peripherals.SPI2, 8u32.MHz(), SpiMode::Mode0)
         .with_sck(sck)
         .with_mosi(mosi);
-    let mut spi_device = ExclusiveDevice::new(spi, cs, delay);
+    let mut spi_device = ExclusiveDevice::new(spi, cs, delay).unwrap();
     let mut epd = Epd2in9::new(&mut spi_device, busy, dc, rst, &mut delay, Some(0)).unwrap();
     let mut display = Display2in9::default();
 
@@ -88,7 +85,7 @@ fn main() -> ! {
     epd.update_frame(&mut spi_device, display.buffer(), &mut delay)
         .unwrap();
     epd.display_frame(&mut spi_device, &mut delay).unwrap();
-    delay.delay_ms(1_000_u32);
+    delay.delay_millis(1_000_u32);
 
     // Clock graphic demo
     println!("Begin clock graphics demo");
@@ -106,7 +103,7 @@ fn main() -> ! {
         .draw(&mut display);
     epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)
         .unwrap();
-    delay.delay_ms(1_000_u32);
+    delay.delay_millis(1_000_u32);
 
     // Partial refresh demo - moving message
     println!("Begin partial quick refresh demo - moving message");
@@ -118,7 +115,7 @@ fn main() -> ! {
         epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)
             .unwrap();
     }
-    delay.delay_ms(1_000_u32);
+    delay.delay_millis(1_000_u32);
 
     // Partial refresh demo - spinner
     println!("Begin spinner demo");
@@ -129,7 +126,7 @@ fn main() -> ! {
         epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)
             .unwrap();
     }
-    delay.delay_ms(1_000_u32);
+    delay.delay_millis(1_000_u32);
 
     // display complete message and enter sleep
     println!("Complete");
@@ -141,6 +138,6 @@ fn main() -> ! {
 
     // sleep
     loop {
-        delay.delay_ms(1_000_u32);
+        delay.delay_millis(1_000_u32);
     }
 }

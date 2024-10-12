@@ -9,18 +9,16 @@
 #![no_std]
 #![no_main]
 #![feature(type_alias_impl_trait)]
+#![feature(impl_trait_in_assoc_type)]
 
+use embassy_executor::Spawner;
 use embassy_sync::channel::{Channel, Sender};
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
 use embassy_time::{Duration, Timer};
-use embedded_hal_async::digital::Wait;
 use esp_backtrace as _;
 use esp_hal::{
-    clock::{ClockControl, CpuClock},
-    embassy,
-    gpio::{AnyPin, Input, Output, PullUp, PushPull, IO},
-    peripherals::Peripherals,
-    prelude::*,
+    gpio::{Input, Io, Level, Output, Pull},
+    timer::systimer::{SystemTimer, Target},
 };
 use esp_println::println;
 
@@ -35,14 +33,14 @@ enum SensorEvent {
 
 #[embassy_executor::task(pool_size = 2)]
 async fn sensor_watcher(
-    mut sensor: AnyPin<Input<PullUp>>,
+    mut sensor: Input<'static>,
     sensor_id: u8,
     sender: Sender<'static, CriticalSectionRawMutex, SensorEvent, 1>,
 ) {
     loop {
-        sensor.wait_for_any_edge().await.unwrap();
+        sensor.wait_for_any_edge().await;
         Timer::after(Duration::from_millis(DEBOUNCE_DELAY_MS)).await;
-        if sensor.is_low().unwrap() {
+        if sensor.is_low() {
             sender.send(SensorEvent::Closed(sensor_id)).await;
         } else {
             sender.send(SensorEvent::Released(sensor_id)).await;
@@ -52,54 +50,51 @@ async fn sensor_watcher(
 
 #[embassy_executor::task(pool_size = 1)]
 async fn output_manager(
-    mut outputs: [AnyPin<Output<PushPull>>; 2],
+    mut outputs: [Output<'static>; 2],
     receiver: Receiver<'static, CriticalSectionRawMutex, SensorEvent, 1>,
 ) {
     loop {
         match receiver.receive().await {
             SensorEvent::Closed(n) => {
-                outputs[n as usize].set_low().unwrap();
+                outputs[n as usize].set_low();
                 println!("SENSOR {n}: CLOSED")
             }
             SensorEvent::Released(n) => {
-                outputs[n as usize].set_high().unwrap();
+                outputs[n as usize].set_high();
                 println!("SENSOR {n}: OPEN")
             }
         }
     }
 }
 
-#[embassy_executor::main]
-async fn main(spawner: embassy_executor::Spawner) {
+#[esp_hal_embassy::main]
+async fn main(spawner: Spawner) {
     // Initialize hardware
-    let peripherals = Peripherals::take();
-    let system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock80MHz).freeze();
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
+    let peripherals = esp_hal::init(esp_hal::Config::default());
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    embassy::init(
-        &clocks,
-        esp_hal::systimer::SystemTimer::new(peripherals.SYSTIMER),
-    );
+    let systimer = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
+    esp_hal_embassy::init(systimer.alarm0);
 
     // Initialize hall sensor
-    let hall_sensors: [AnyPin<Input<PullUp>>; 2] = [
-        io.pins.gpio8.into_pull_up_input().into(),
-        io.pins.gpio20.into_pull_up_input().into(),
+    let hall_sensors = [
+        Input::new(io.pins.gpio8, Pull::Up),
+        Input::new(io.pins.gpio20, Pull::Up),
     ];
 
     // Initialize leds
-    let mut leds: [AnyPin<Output<PushPull>>; 2] = [
-        io.pins.gpio2.into_push_pull_output().into(),
-        io.pins.gpio3.into_push_pull_output().into(),
+    let mut leds = [
+        Output::new(io.pins.gpio2, Level::Low),
+        Output::new(io.pins.gpio3, Level::Low),
     ];
+
     for (i, (hall, led)) in hall_sensors.iter().zip(leds.iter_mut()).enumerate() {
-        if hall.is_high().unwrap() {
+        if hall.is_high() {
             println!("Sensor {i} initial state: OPEN");
-            led.set_high().unwrap();
+            led.set_high();
         } else {
             println!("Sensor {i} initial state: CLOSED");
-            led.set_low().unwrap();
+            led.set_low();
         }
     }
 

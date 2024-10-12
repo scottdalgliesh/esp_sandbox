@@ -7,31 +7,31 @@
 #![no_main]
 
 use esp_backtrace as _;
-use esp_hal::{clock::ClockControl, gpio::IO, peripherals::Peripherals, prelude::*, Delay};
+use esp_hal::{
+    delay::Delay,
+    gpio::{Io, Level, Output},
+    prelude::*,
+};
 use esp_println::println;
 
 #[entry]
 fn main() -> ! {
     // Initialize hardware
-    let peripherals = Peripherals::take();
-    let system = peripherals.SYSTEM.split();
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    let mut delay = Delay::new(&clocks);
-    println!("Hello world!");
+    let peripherals = esp_hal::init(esp_hal::Config::default());
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let delay = Delay::new();
 
     // Initialize led
-    let mut led = io.pins.gpio0.into_push_pull_output();
-    led.set_high().unwrap();
+    let mut led = Output::new(io.pins.gpio0, Level::High);
 
     // Event loop
     loop {
-        led.toggle().unwrap();
-        let status = match led.is_set_low().unwrap() {
+        led.toggle();
+        let status = match led.is_set_low() {
             true => "LOW",
             false => "HIGH",
         };
         println!("LED {status}");
-        delay.delay_ms(500u32);
+        delay.delay_millis(500);
     }
 }

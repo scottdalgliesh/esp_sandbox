@@ -9,37 +9,32 @@
 use core::time::Duration;
 use esp_backtrace as _;
 use esp_hal::{
-    clock::ClockControl,
-    gpio::IO,
-    peripherals::Peripherals,
+    delay::Delay,
+    gpio::{Io, Level, Output},
     prelude::*,
     rtc_cntl::{sleep::TimerWakeupSource, Rtc},
-    Delay,
 };
 use esp_println::println;
 
 #[entry]
 fn main() -> ! {
     // Initialize hardware
-    let peripherals = Peripherals::take();
-    let system = peripherals.SYSTEM.split();
-    let io = IO::new(peripherals.GPIO, peripherals.IO_MUX);
-    let clocks = ClockControl::boot_defaults(system.clock_control).freeze();
-    let mut delay = Delay::new(&clocks);
+    let peripherals = esp_hal::init(esp_hal::Config::default());
+    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
+    let delay = Delay::new();
     let mut rtc = Rtc::new(peripherals.LPWR);
 
     // Initialize led
     println!("start");
-    let mut led = io.pins.gpio21.into_push_pull_output();
-    led.set_high().unwrap();
-    delay.delay_ms(5000u32);
-    led.set_low().unwrap();
+    let mut led = Output::new(io.pins.gpio0, Level::High);
+    delay.delay_millis(5000);
+    led.set_low();
 
     // enter light sleep
     println!("sleep");
     let timer = TimerWakeupSource::new(Duration::from_secs(5));
-    delay.delay_ms(100u32);
-    rtc.sleep_light(&[&timer], &mut delay);
+    delay.delay_millis(100);
+    rtc.sleep_light(&[&timer]);
 
     // note that logging via println!() stops working at this point, as communication
     // with host computer is lost during light sleep. Connection will not be resumed
@@ -47,8 +42,8 @@ fn main() -> ! {
 
     // blink LED to show process is resumed after wake-up
     loop {
-        led.toggle().unwrap();
-        delay.delay_ms(1000u32);
+        led.toggle();
+        delay.delay_millis(1000);
     }
 
     // note regarding deep sleep: deep sleep will shut down nearly all MCU processes

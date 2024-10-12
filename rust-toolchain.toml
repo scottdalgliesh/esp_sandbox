@@ -1,4 +1,4 @@
 [toolchain]
-channel = "nightly-2024-03-15" # due to: https://github.com/embassy-rs/embassy/issues/2709
+channel = "nightly"
 components = ["rust-src"]
 targets = ["riscv32imc-unknown-none-elf"]
