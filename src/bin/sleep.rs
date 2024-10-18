@@ -14,24 +14,24 @@ use esp_hal::{
     prelude::*,
     rtc_cntl::{sleep::TimerWakeupSource, Rtc},
 };
-use esp_println::println;
 
 #[entry]
 fn main() -> ! {
     // Initialize hardware
+    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     let delay = Delay::new();
     let mut rtc = Rtc::new(peripherals.LPWR);
 
     // Initialize led
-    println!("start");
+    log::info!("start");
     let mut led = Output::new(io.pins.gpio0, Level::High);
     delay.delay_millis(5000);
-    led.set_low();
 
+    // TODO: experiment with rtc::sleep(...) to disable LED during sleep
     // enter light sleep
-    println!("sleep");
+    log::info!("sleep");
     let timer = TimerWakeupSource::new(Duration::from_secs(5));
     delay.delay_millis(100);
     rtc.sleep_light(&[&timer]);

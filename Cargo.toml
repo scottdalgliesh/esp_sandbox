@@ -19,6 +19,7 @@ embassy-time = { version = "0.3.2"}
 epd-waveshare = "0.5.0"
 embedded-graphics = "0.8.1"
 embedded-hal-bus = "0.2.0"
+log = "0.4.22"
 
 [patch.crates-io]
 epd-waveshare = { git = "https://github.com/scottdalgliesh/epd-waveshare.git"}

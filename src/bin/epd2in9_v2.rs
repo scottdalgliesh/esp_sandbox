@@ -33,7 +33,6 @@ use esp_hal::{
     prelude::*,
     spi::{master::Spi, SpiMode},
 };
-use esp_println::println;
 
 fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
     let style = MonoTextStyleBuilder::new()
@@ -55,6 +54,7 @@ fn draw_rotated_text(display: &mut Display2in9, text: &str, rotation: DisplayRot
 #[entry]
 fn main() -> ! {
     // Initialize hardware
+    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let mut delay = Delay::new();
 
@@ -68,7 +68,7 @@ fn main() -> ! {
     let rst = Output::new(io.pins.gpio2, Level::Low);
 
     // Initialize SPI & EPD
-    println!("Initializing display");
+    log::info!("Initializing display");
     let spi = Spi::new(peripherals.SPI2, 8u32.MHz(), SpiMode::Mode0)
         .with_sck(sck)
         .with_mosi(mosi);
@@ -77,7 +77,7 @@ fn main() -> ! {
     let mut display = Display2in9::default();
 
     // Text output and rotation demo
-    println!("Begin text output and rotation demo");
+    log::info!("Begin text output and rotation demo");
     draw_rotated_text(&mut display, "Rotate 0!", DisplayRotation::Rotate0);
     draw_rotated_text(&mut display, "Rotate 90!", DisplayRotation::Rotate90);
     draw_rotated_text(&mut display, "Rotate 180!", DisplayRotation::Rotate180);
@@ -88,7 +88,7 @@ fn main() -> ! {
     delay.delay_millis(1_000_u32);
 
     // Clock graphic demo
-    println!("Begin clock graphics demo");
+    log::info!("Begin clock graphics demo");
     display.clear(Color::White).ok();
     let thin = PrimitiveStyle::with_stroke(Color::Black, 1);
     let thick = PrimitiveStyle::with_stroke(Color::Black, 4);
@@ -106,7 +106,7 @@ fn main() -> ! {
     delay.delay_millis(1_000_u32);
 
     // Partial refresh demo - moving message
-    println!("Begin partial quick refresh demo - moving message");
+    log::info!("Begin partial quick refresh demo - moving message");
     epd.set_refresh(&mut spi_device, &mut delay, RefreshLut::Quick)
         .unwrap();
     display.clear(Color::White).ok();
@@ -118,7 +118,7 @@ fn main() -> ! {
     delay.delay_millis(1_000_u32);
 
     // Partial refresh demo - spinner
-    println!("Begin spinner demo");
+    log::info!("Begin spinner demo");
     let spinner = ["|", "/", "-", "\\"];
     for i in 0..10 {
         display.clear(Color::White).ok();
@@ -129,7 +129,7 @@ fn main() -> ! {
     delay.delay_millis(1_000_u32);
 
     // display complete message and enter sleep
-    println!("Complete");
+    log::info!("Complete");
     display.clear(Color::White).unwrap();
     draw_text(&mut display, "COMPLETE", 100, 60);
     epd.update_and_display_frame(&mut spi_device, display.buffer(), &mut delay)

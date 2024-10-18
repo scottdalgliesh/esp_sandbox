@@ -530,6 +530,7 @@ dependencies = [
  "esp-hal-embassy",
  "esp-println",
  "esp-riscv-rt",
+ "log",
 ]
 
 [[package]]

@@ -18,9 +18,8 @@ use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{
     gpio::{Input, Io, Level, Output, Pull},
-    timer::systimer::{SystemTimer, Target},
+    timer::timg::TimerGroup,
 };
-use esp_println::println;
 
 static CHANNEL: Channel<CriticalSectionRawMutex, SensorEvent, 1> = Channel::new();
 const DEBOUNCE_DELAY_MS: u64 = 1;
@@ -57,11 +56,11 @@ async fn output_manager(
         match receiver.receive().await {
             SensorEvent::Closed(n) => {
                 outputs[n as usize].set_low();
-                println!("SENSOR {n}: CLOSED")
+                log::info!("SENSOR {n}: CLOSED")
             }
             SensorEvent::Released(n) => {
                 outputs[n as usize].set_high();
-                println!("SENSOR {n}: OPEN")
+                log::info!("SENSOR {n}: OPEN")
             }
         }
     }
@@ -70,11 +69,13 @@ async fn output_manager(
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     // Initialize hardware
+    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    let systimer = SystemTimer::new(peripherals.SYSTIMER).split::<Target>();
-    esp_hal_embassy::init(systimer.alarm0);
+    // initialize embassy
+    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    esp_hal_embassy::init(timg0.timer0);
 
     // Initialize hall sensor
     let hall_sensors = [
@@ -90,20 +91,13 @@ async fn main(spawner: Spawner) {
 
     for (i, (hall, led)) in hall_sensors.iter().zip(leds.iter_mut()).enumerate() {
         if hall.is_high() {
-            println!("Sensor {i} initial state: OPEN");
+            log::info!("Sensor {i} initial state: OPEN");
             led.set_high();
         } else {
-            println!("Sensor {i} initial state: CLOSED");
+            log::info!("Sensor {i} initial state: CLOSED");
             led.set_low();
         }
     }
-
-    // Async requires the GPIO interrupt to wake futures
-    esp_hal::interrupt::enable(
-        esp_hal::peripherals::Interrupt::GPIO,
-        esp_hal::interrupt::Priority::Priority1,
-    )
-    .unwrap();
 
     let sender = CHANNEL.sender();
     let receiver = CHANNEL.receiver();
@@ -116,5 +110,5 @@ async fn main(spawner: Spawner) {
     }
     spawner.spawn(output_manager(leds, receiver)).unwrap();
 
-    println!("Tasks initialized")
+    log::info!("Tasks initialized")
 }

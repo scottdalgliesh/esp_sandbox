@@ -12,11 +12,11 @@ use esp_hal::{
     gpio::{Io, Level, Output},
     prelude::*,
 };
-use esp_println::println;
 
 #[entry]
 fn main() -> ! {
     // Initialize hardware
+    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     let delay = Delay::new();
@@ -27,11 +27,8 @@ fn main() -> ! {
     // Event loop
     loop {
         led.toggle();
-        let status = match led.is_set_low() {
-            true => "LOW",
-            false => "HIGH",
-        };
-        println!("LED {status}");
+        let status = if led.is_set_high() { "ON" } else { "OFF" };
+        log::info!("LED {status}");
         delay.delay_millis(500);
     }
 }
