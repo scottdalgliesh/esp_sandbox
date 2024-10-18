@@ -8,12 +8,9 @@
 
 #![no_std]
 #![no_main]
-#![feature(type_alias_impl_trait)]
 #![feature(impl_trait_in_assoc_type)]
 
 use embassy_executor::Spawner;
-use embassy_sync::channel::{Channel, Sender};
-use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, channel::Receiver};
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{
@@ -21,48 +18,24 @@ use esp_hal::{
     timer::timg::TimerGroup,
 };
 
-static CHANNEL: Channel<CriticalSectionRawMutex, SensorEvent, 1> = Channel::new();
 const DEBOUNCE_DELAY_MS: u64 = 1;
 
-#[derive(Clone, Copy)]
-enum SensorEvent {
-    Closed(u8),
-    Released(u8),
+/// Indicate current status of sensor via LED
+fn show_sensor_status(id: u8, sensor: &mut Input, led: &mut Output) {
+    // report change
+    let level = sensor.get_level();
+    let status = if level.into() { "OPEN" } else { "CLOSED" };
+    led.set_level(level);
+    log::info!("SENSOR {id}: {status}");
 }
 
+/// Monitor sensor and indicate status via LED
 #[embassy_executor::task(pool_size = 2)]
-async fn sensor_watcher(
-    mut sensor: Input<'static>,
-    sensor_id: u8,
-    sender: Sender<'static, CriticalSectionRawMutex, SensorEvent, 1>,
-) {
+async fn sensor_watcher(id: u8, mut sensor: Input<'static>, mut led: Output<'static>) {
     loop {
         sensor.wait_for_any_edge().await;
         Timer::after(Duration::from_millis(DEBOUNCE_DELAY_MS)).await;
-        if sensor.is_low() {
-            sender.send(SensorEvent::Closed(sensor_id)).await;
-        } else {
-            sender.send(SensorEvent::Released(sensor_id)).await;
-        }
-    }
-}
-
-#[embassy_executor::task(pool_size = 1)]
-async fn output_manager(
-    mut outputs: [Output<'static>; 2],
-    receiver: Receiver<'static, CriticalSectionRawMutex, SensorEvent, 1>,
-) {
-    loop {
-        match receiver.receive().await {
-            SensorEvent::Closed(n) => {
-                outputs[n as usize].set_low();
-                log::info!("SENSOR {n}: CLOSED")
-            }
-            SensorEvent::Released(n) => {
-                outputs[n as usize].set_high();
-                log::info!("SENSOR {n}: OPEN")
-            }
-        }
+        show_sensor_status(id, &mut sensor, &mut led);
     }
 }
 
@@ -73,12 +46,12 @@ async fn main(spawner: Spawner) {
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
-    // initialize embassy
+    // Initialize embassy
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     esp_hal_embassy::init(timg0.timer0);
 
-    // Initialize hall sensor
-    let hall_sensors = [
+    // Initialize hall sensors
+    let mut hall_sensors = [
         Input::new(io.pins.gpio8, Pull::Up),
         Input::new(io.pins.gpio20, Pull::Up),
     ];
@@ -89,26 +62,15 @@ async fn main(spawner: Spawner) {
         Output::new(io.pins.gpio3, Level::Low),
     ];
 
-    for (i, (hall, led)) in hall_sensors.iter().zip(leds.iter_mut()).enumerate() {
-        if hall.is_high() {
-            log::info!("Sensor {i} initial state: OPEN");
-            led.set_high();
-        } else {
-            log::info!("Sensor {i} initial state: CLOSED");
-            led.set_low();
-        }
+    // Set LED based on initial state of hall sensor
+    for (i, (hall, led)) in hall_sensors.iter_mut().zip(leds.iter_mut()).enumerate() {
+        show_sensor_status(i as u8, hall, led);
     }
 
-    let sender = CHANNEL.sender();
-    let receiver = CHANNEL.receiver();
-
-    // initialize async tasks
-    for (i, hall) in hall_sensors.into_iter().enumerate() {
-        spawner
-            .spawn(sensor_watcher(hall, i as u8, sender))
-            .unwrap();
+    // Initialize async tasks
+    for (i, (hall, led)) in hall_sensors.into_iter().zip(leds.into_iter()).enumerate() {
+        spawner.spawn(sensor_watcher(i as u8, hall, led)).unwrap();
     }
-    spawner.spawn(output_manager(leds, receiver)).unwrap();
 
-    log::info!("Tasks initialized")
+    log::info!("Monitoring sensors...")
 }
