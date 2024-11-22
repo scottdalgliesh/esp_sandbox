@@ -14,7 +14,7 @@ use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_backtrace as _;
 use esp_hal::{
-    gpio::{Input, Io, Level, Output, Pull},
+    gpio::{Input, Level, Output, Pull},
     timer::timg::TimerGroup,
 };
 
@@ -23,7 +23,7 @@ const DEBOUNCE_DELAY_MS: u64 = 1;
 /// Indicate current status of sensor via LED
 fn show_sensor_status(id: u8, sensor: &mut Input, led: &mut Output) {
     // report change
-    let level = sensor.get_level();
+    let level = sensor.level();
     let status = if level.into() { "OPEN" } else { "CLOSED" };
     led.set_level(level);
     log::info!("SENSOR {id}: {status}");
@@ -44,7 +44,6 @@ async fn main(spawner: Spawner) {
     // Initialize hardware
     esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
 
     // Initialize embassy
     let timg0 = TimerGroup::new(peripherals.TIMG0);
@@ -52,14 +51,14 @@ async fn main(spawner: Spawner) {
 
     // Initialize hall sensors
     let mut hall_sensors = [
-        Input::new(io.pins.gpio8, Pull::Up),
-        Input::new(io.pins.gpio20, Pull::Up),
+        Input::new(peripherals.GPIO8, Pull::Up),
+        Input::new(peripherals.GPIO20, Pull::Up),
     ];
 
     // Initialize leds
     let mut leds = [
-        Output::new(io.pins.gpio2, Level::Low),
-        Output::new(io.pins.gpio3, Level::Low),
+        Output::new(peripherals.GPIO2, Level::Low),
+        Output::new(peripherals.GPIO3, Level::Low),
     ];
 
     // Set LED based on initial state of hall sensor

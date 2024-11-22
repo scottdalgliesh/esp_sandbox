@@ -10,7 +10,7 @@ use core::time::Duration;
 use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
-    gpio::{Io, Level, Output},
+    gpio::{Level, Output},
     prelude::*,
     rtc_cntl::{sleep::TimerWakeupSource, Rtc},
 };
@@ -20,13 +20,12 @@ fn main() -> ! {
     // Initialize hardware
     esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     let delay = Delay::new();
     let mut rtc = Rtc::new(peripherals.LPWR);
 
     // Initialize led
     log::info!("start");
-    let mut led = Output::new(io.pins.gpio0, Level::High);
+    let mut led = Output::new(peripherals.GPIO0, Level::High);
     delay.delay_millis(5000);
 
     // TODO: experiment with rtc::sleep(...) to disable LED during sleep

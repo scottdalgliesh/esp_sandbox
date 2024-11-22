@@ -10,7 +10,7 @@
 use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
-    gpio::{Input, Io, Level, Output, Pull},
+    gpio::{Input, Level, Output, Pull},
     prelude::*,
 };
 
@@ -19,16 +19,15 @@ fn main() -> ! {
     // Initialize hardware
     esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
     let delay = Delay::new();
 
     // Initialize led & hall sensor
-    let mut led = Output::new(io.pins.gpio2, Level::Low);
-    let hall = Input::new(io.pins.gpio8, Pull::Up);
+    let mut led = Output::new(peripherals.GPIO2, Level::Low);
+    let hall = Input::new(peripherals.GPIO8, Pull::Up);
 
     // Event loop
     loop {
-        let hall_level = hall.get_level();
+        let hall_level = hall.level();
         let status = if hall_level.into() { "OPEN" } else { "CLOSED" };
         led.set_level(hall_level);
         log::info!("HALL SENSOR: {status}");

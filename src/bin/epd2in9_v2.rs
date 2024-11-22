@@ -29,9 +29,12 @@ use epd_waveshare::{
 use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
-    gpio::{Input, Io, Level, Output, Pull},
+    gpio::{Input, Level, Output, Pull},
     prelude::*,
-    spi::{master::Spi, SpiMode},
+    spi::{
+        master::{Config, Spi},
+        SpiMode,
+    },
 };
 
 fn draw_text(display: &mut Display2in9, text: &str, x: i32, y: i32) {
@@ -59,19 +62,25 @@ fn main() -> ! {
     let mut delay = Delay::new();
 
     // Identify pins
-    let io = Io::new(peripherals.GPIO, peripherals.IO_MUX);
-    let sck = io.pins.gpio8;
-    let mosi = io.pins.gpio10;
-    let cs = Output::new(io.pins.gpio20, Level::Low);
-    let dc = Output::new(io.pins.gpio9, Level::Low);
-    let busy = Input::new(io.pins.gpio3, Pull::None);
-    let rst = Output::new(io.pins.gpio2, Level::Low);
+    let sck = peripherals.GPIO8;
+    let mosi = peripherals.GPIO10;
+    let cs = Output::new(peripherals.GPIO20, Level::Low);
+    let dc = Output::new(peripherals.GPIO9, Level::Low);
+    let busy = Input::new(peripherals.GPIO3, Pull::None);
+    let rst = Output::new(peripherals.GPIO2, Level::Low);
 
     // Initialize SPI & EPD
     log::info!("Initializing display");
-    let spi = Spi::new(peripherals.SPI2, 8u32.MHz(), SpiMode::Mode0)
-        .with_sck(sck)
-        .with_mosi(mosi);
+    let spi = Spi::new_with_config(
+        peripherals.SPI2,
+        Config {
+            frequency: 8u32.MHz(),
+            mode: SpiMode::Mode0,
+            ..Config::default()
+        },
+    )
+    .with_sck(sck)
+    .with_mosi(mosi);
     let mut spi_device = ExclusiveDevice::new(spi, cs, delay).unwrap();
     let mut epd = Epd2in9::new(&mut spi_device, busy, dc, rst, &mut delay, Some(0)).unwrap();
     let mut display = Display2in9::default();
