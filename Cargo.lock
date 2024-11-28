@@ -566,6 +566,7 @@ dependencies = [
  "esp-println",
  "esp-riscv-rt",
  "log",
+ "static_cell",
 ]
 
 [[package]]
