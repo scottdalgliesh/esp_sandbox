@@ -14,7 +14,6 @@
 #![no_std]
 #![no_main]
 
-// use embedded_hal::spi::SpiDevice;
 use embedded_graphics::{
     mono_font::MonoTextStyleBuilder,
     prelude::*,
