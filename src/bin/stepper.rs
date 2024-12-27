@@ -9,12 +9,13 @@
 #![no_std]
 #![no_main]
 
-use esp_backtrace as _;
+use defmt::info;
 use esp_hal::{
     delay::Delay,
     gpio::{Level, Output},
     prelude::*,
 };
+use {defmt_rtt as _, esp_backtrace as _};
 
 const RPM: u32 = 60;
 const NUM_STEPS: u32 = 1600;
@@ -22,7 +23,6 @@ const NUM_STEPS: u32 = 1600;
 #[entry]
 fn main() -> ! {
     // Initialize hardware
-    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let delay = Delay::new();
 
@@ -32,19 +32,19 @@ fn main() -> ! {
 
     // Calculate delay time for square wave
     let delay_time: u32 = 60 * 1_000_000 / RPM / NUM_STEPS / 2;
-    log::info!("delay time: {delay_time}");
+    info!("delay time: {}", delay_time);
 
     // Event loop
     let mut counter = 0;
     loop {
-        log::info!("{counter}: start rotation");
+        info!("{}: start rotation", counter);
         for _ in 0..NUM_STEPS {
             step.set_high();
             delay.delay_micros(delay_time);
             step.set_low();
             delay.delay_micros(delay_time);
         }
-        log::info!("pause");
+        info!("pause");
         delay.delay_millis(2_000);
         counter += 1;
     }

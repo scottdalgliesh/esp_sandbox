@@ -11,9 +11,9 @@
 #![no_main]
 #![feature(impl_trait_in_assoc_type)]
 
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Instant, Ticker};
-use esp_backtrace as _;
 use esp_hal::{
     gpio::{AnyPin, Level, Output},
     interrupt::{software::SoftwareInterruptControl, Priority},
@@ -21,6 +21,7 @@ use esp_hal::{
 };
 use esp_hal_embassy::InterruptExecutor;
 use static_cell::StaticCell;
+use {defmt_rtt as _, esp_backtrace as _};
 
 // Inputs
 const MOTOR_STEPS_PER_REV: u32 = 200;
@@ -40,9 +41,7 @@ const TOTAL_CYCLE_TIME_US: u32 = RUN_TIME_US + PAUSE_SEC * 1_000_000;
 #[esp_hal_embassy::main]
 async fn main(_spawner: Spawner) {
     // Initialize hardware
-    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
-
     let sw_ints = SoftwareInterruptControl::new(peripherals.SW_INTERRUPT);
 
     // Initialize embassy
@@ -64,8 +63,8 @@ async fn main(_spawner: Spawner) {
 
 #[embassy_executor::task]
 async fn pwm_manager(dir_pin: AnyPin, step_pin: AnyPin) {
-    log::info!("delay time (us): {DELAY_TIME_US}");
-    log::info!("cycle time (us): {RUN_TIME_US}");
+    info!("delay time (us): {}", DELAY_TIME_US);
+    info!("cycle time (us): {}", RUN_TIME_US);
 
     // Initialize motor control GPIO
     let mut _dir = Output::new(dir_pin, Level::High);
@@ -113,7 +112,10 @@ async fn pwm_manager(dir_pin: AnyPin, step_pin: AnyPin) {
             let total_cycle_time = end_cycle_time.duration_since(high_start_time).as_micros();
             let total_elapsed = end_cycle_time.duration_since(initial_time).as_millis();
             let overall_elapsed = end_cycle_time.duration_since(overall_time).as_secs();
-            log::info!("step {i}: {high_time} - {low_time} - {total_cycle_time} - {total_elapsed} - {overall_elapsed}");
+            info!(
+                "step {}: {} - {} - {} - {} - {}",
+                i, high_time, low_time, total_cycle_time, total_elapsed, overall_elapsed
+            );
         }
 
         // wait until "pause" period ends

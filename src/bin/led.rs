@@ -6,17 +6,18 @@
 #![no_std]
 #![no_main]
 
+use defmt::info;
 use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
     gpio::{Level, Output},
     prelude::*,
 };
+use {defmt_rtt as _, esp_backtrace as _};
 
 #[entry]
 fn main() -> ! {
     // Initialize hardware
-    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let delay = Delay::new();
 
@@ -27,7 +28,7 @@ fn main() -> ! {
     loop {
         led.toggle();
         let status = if led.is_set_high() { "ON" } else { "OFF" };
-        log::info!("LED {status}");
+        info!("LED {}", status);
         delay.delay_millis(500);
     }
 }

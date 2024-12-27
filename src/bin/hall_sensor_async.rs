@@ -10,13 +10,14 @@
 #![no_main]
 #![feature(impl_trait_in_assoc_type)]
 
+use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
-use esp_backtrace as _;
 use esp_hal::{
     gpio::{Input, Level, Output, Pull},
     timer::timg::TimerGroup,
 };
+use {defmt_rtt as _, esp_backtrace as _};
 
 const DEBOUNCE_DELAY_MS: u64 = 1;
 
@@ -26,7 +27,7 @@ fn show_sensor_status(id: u8, sensor: &mut Input, led: &mut Output) {
     let level = sensor.level();
     let status = if level.into() { "OPEN" } else { "CLOSED" };
     led.set_level(level);
-    log::info!("SENSOR {id}: {status}");
+    info!("SENSOR {}: {}", id, status);
 }
 
 /// Monitor sensor and indicate status via LED
@@ -42,7 +43,6 @@ async fn sensor_watcher(id: u8, mut sensor: Input<'static>, mut led: Output<'sta
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     // Initialize hardware
-    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
 
     // Initialize embassy
@@ -71,5 +71,5 @@ async fn main(spawner: Spawner) {
         spawner.spawn(sensor_watcher(i as u8, hall, led)).unwrap();
     }
 
-    log::info!("Monitoring sensors...")
+    info!("Monitoring sensors...")
 }

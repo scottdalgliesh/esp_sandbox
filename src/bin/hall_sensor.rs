@@ -7,17 +7,17 @@
 #![no_std]
 #![no_main]
 
-use esp_backtrace as _;
+use defmt::info;
 use esp_hal::{
     delay::Delay,
     gpio::{Input, Level, Output, Pull},
     prelude::*,
 };
+use {defmt_rtt as _, esp_backtrace as _};
 
 #[entry]
 fn main() -> ! {
     // Initialize hardware
-    esp_println::logger::init_logger_from_env();
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let delay = Delay::new();
 
@@ -30,7 +30,7 @@ fn main() -> ! {
         let hall_level = hall.level();
         let status = if hall_level.into() { "OPEN" } else { "CLOSED" };
         led.set_level(hall_level);
-        log::info!("HALL SENSOR: {status}");
+        info!("HALL SENSOR: {}", status);
         delay.delay_millis(500);
     }
 }
