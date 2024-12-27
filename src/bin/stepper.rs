@@ -1,4 +1,4 @@
-//! Simple demo flashing an LED on ESP32C3
+//! Simple demo periodically rotating a stepper motor via ESP32C3 & DRV8825
 //!
 //! Connections List (TODO: wiring schematic)
 //! - GPIO20: stepper (DRV8825 DIR)
