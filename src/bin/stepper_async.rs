@@ -13,7 +13,7 @@
 
 use defmt::info;
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Instant, Ticker};
+use embassy_time::{Duration, Instant, Ticker, Timer};
 use esp_hal::{
     gpio::{AnyPin, Level, Output},
     interrupt::{software::SoftwareInterruptControl, Priority},
@@ -29,9 +29,11 @@ const MICRO_STEP_MODE_DIVISOR: u32 = 2;
 const RPM: u32 = 320;
 const NUM_REVS: u32 = 16;
 const PAUSE_SEC: u32 = 2;
+const SAMPLE_INTERVAL: u32 = 100;
 
 // Calculated values
 const NUM_STEPS: u32 = NUM_REVS * MOTOR_STEPS_PER_REV * MICRO_STEP_MODE_DIVISOR;
+const LOG_SAMPLES: u32 = NUM_STEPS / SAMPLE_INTERVAL;
 const DELAY_TIME_US: u32 =
     60 * 1_000_000 / (2 * RPM * MOTOR_STEPS_PER_REV * MICRO_STEP_MODE_DIVISOR);
 const STEP_TIME_US: u32 = DELAY_TIME_US * 2;
@@ -71,19 +73,24 @@ async fn main(_spawner: Spawner) {
 async fn pwm_manager(dir_pin: AnyPin, step_pin: AnyPin) {
     info!("delay time (us): {}", DELAY_TIME_US);
     info!("cycle time (us): {}", RUN_TIME_US);
+    info!("total cycle time (us): {}", TOTAL_CYCLE_TIME_US);
+    info!("log samples (us): {}", LOG_SAMPLES);
+
+    // Initial delay to prevent initialization issues
+    Timer::after_millis(100).await;
 
     // Initialize motor control GPIO
     let mut _dir = Output::new(dir_pin, Level::High);
     let mut step = Output::new(step_pin, Level::Low);
 
+    // for logging key times
+    let mut high_start_times = [Instant::from_micros(0); LOG_SAMPLES as usize];
+    let mut low_start_times = [Instant::from_micros(0); LOG_SAMPLES as usize];
+    let mut end_cycle_times = [Instant::from_micros(0); LOG_SAMPLES as usize];
+
     // start cycle
     let overall_time = Instant::now();
     let mut cycle_ticker = Ticker::every(Duration::from_micros(TOTAL_CYCLE_TIME_US.into()));
-
-    // for logging key times
-    let mut high_start_times = [Instant::from_micros(0); NUM_STEPS as usize];
-    let mut low_start_times = [Instant::from_micros(0); NUM_STEPS as usize];
-    let mut end_cycle_times = [Instant::from_micros(0); NUM_STEPS as usize];
 
     // Event loop
     loop {
@@ -93,22 +100,28 @@ async fn pwm_manager(dir_pin: AnyPin, step_pin: AnyPin) {
 
         // perform 1 rotation
         for i in 0..NUM_STEPS as usize {
+            let is_sample = i % SAMPLE_INTERVAL as usize == 0;
+            let log_index = i / SAMPLE_INTERVAL as usize;
+
             step.set_high();
-            high_start_times[i] = Instant::now();
+            if is_sample {
+                high_start_times[log_index] = Instant::now();
+            };
             ticker.next().await;
 
             step.set_low();
-            low_start_times[i] = Instant::now();
+            if is_sample {
+                low_start_times[log_index] = Instant::now();
+            };
             ticker.next().await;
 
-            end_cycle_times[i] = Instant::now();
+            if is_sample {
+                end_cycle_times[log_index] = Instant::now();
+            };
         }
 
         // log out timing data
-        for i in 0..NUM_STEPS as usize {
-            if i % 100 != 0 {
-                continue;
-            }
+        for i in 0..LOG_SAMPLES as usize {
             let high_start_time = high_start_times[i];
             let low_start_time = low_start_times[i];
             let end_cycle_time = end_cycle_times[i];
