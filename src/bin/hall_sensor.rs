@@ -10,20 +10,23 @@
 use defmt::info;
 use esp_hal::{
     delay::Delay,
-    gpio::{Input, Level, Output, Pull},
-    prelude::*,
+    gpio::{Input, InputConfig, Level, Output, OutputConfig, Pull},
+    main,
 };
 use {defmt_rtt as _, esp_backtrace as _};
 
-#[entry]
+#[main]
 fn main() -> ! {
     // Initialize hardware
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let delay = Delay::new();
 
     // Initialize led & hall sensor
-    let mut led = Output::new(peripherals.GPIO2, Level::Low);
-    let hall = Input::new(peripherals.GPIO8, Pull::Up);
+    let mut led = Output::new(peripherals.GPIO2, Level::Low, OutputConfig::default());
+    let hall = Input::new(
+        peripherals.GPIO8,
+        InputConfig::default().with_pull(Pull::Up),
+    );
 
     // Event loop
     loop {

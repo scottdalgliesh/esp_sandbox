@@ -14,7 +14,7 @@ use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use esp_hal::{
-    gpio::{Input, Level, Output, Pull},
+    gpio::{Input, InputConfig, Level, Output, OutputConfig, Pull},
     timer::timg::TimerGroup,
 };
 use {defmt_rtt as _, esp_backtrace as _};
@@ -50,15 +50,17 @@ async fn main(spawner: Spawner) {
     esp_hal_embassy::init(timg0.timer0);
 
     // Initialize hall sensors
+    let input_config = InputConfig::default().with_pull(Pull::Up);
     let mut hall_sensors = [
-        Input::new(peripherals.GPIO8, Pull::Up),
-        Input::new(peripherals.GPIO20, Pull::Up),
+        Input::new(peripherals.GPIO8, input_config),
+        Input::new(peripherals.GPIO20, input_config),
     ];
 
     // Initialize leds
+    let output_config = OutputConfig::default();
     let mut leds = [
-        Output::new(peripherals.GPIO2, Level::Low),
-        Output::new(peripherals.GPIO3, Level::Low),
+        Output::new(peripherals.GPIO2, Level::Low, output_config),
+        Output::new(peripherals.GPIO3, Level::Low, output_config),
     ];
 
     // Set LED based on initial state of hall sensor

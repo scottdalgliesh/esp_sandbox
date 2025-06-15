@@ -15,9 +15,9 @@ use defmt::info;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Instant, Ticker, Timer};
 use esp_hal::{
-    gpio::{AnyPin, Level, Output},
-    interrupt::{software::SoftwareInterruptControl, Priority},
-    timer::{timg::TimerGroup, AnyTimer},
+    gpio::{AnyPin, Level, Output, OutputConfig},
+    interrupt::{Priority, software::SoftwareInterruptControl},
+    timer::{AnyTimer, timg::TimerGroup},
 };
 use esp_hal_embassy::InterruptExecutor;
 use static_cell::StaticCell;
@@ -70,7 +70,7 @@ async fn main(_spawner: Spawner) {
 
 /// Task to manage PWM output signal to DRV8825 driver
 #[embassy_executor::task]
-async fn pwm_manager(dir_pin: AnyPin, step_pin: AnyPin) {
+async fn pwm_manager(dir_pin: AnyPin<'static>, step_pin: AnyPin<'static>) {
     info!("delay time (us): {}", DELAY_TIME_US);
     info!("cycle time (us): {}", RUN_TIME_US);
     info!("total cycle time (us): {}", TOTAL_CYCLE_TIME_US);
@@ -80,8 +80,9 @@ async fn pwm_manager(dir_pin: AnyPin, step_pin: AnyPin) {
     Timer::after_millis(100).await;
 
     // Initialize motor control GPIO
-    let mut _dir = Output::new(dir_pin, Level::High);
-    let mut step = Output::new(step_pin, Level::Low);
+    let output_config = OutputConfig::default();
+    let mut _dir = Output::new(dir_pin, Level::High, output_config);
+    let mut step = Output::new(step_pin, Level::Low, output_config);
 
     // for logging key times
     let mut high_start_times = [Instant::from_micros(0); LOG_SAMPLES as usize];

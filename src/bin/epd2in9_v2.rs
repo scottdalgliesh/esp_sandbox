@@ -28,12 +28,13 @@ use epd_waveshare::{
 };
 use esp_hal::{
     delay::Delay,
-    gpio::{Input, Level, Output, Pull},
-    prelude::*,
+    gpio::{Input, InputConfig, Level, Output, OutputConfig, Pull},
+    main,
     spi::{
+        Mode,
         master::{Config, Spi},
-        SpiMode,
     },
+    time::Rate,
 };
 use {defmt_rtt as _, esp_backtrace as _};
 
@@ -54,30 +55,33 @@ fn draw_rotated_text(display: &mut Display2in9, text: &str, rotation: DisplayRot
     draw_text(display, text, 5, 50);
 }
 
-#[entry]
+#[main]
 fn main() -> ! {
     // Initialize hardware
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let mut delay = Delay::new();
 
+    // pin driver config
+    let input_config = InputConfig::default().with_pull(Pull::None);
+    let output_config = OutputConfig::default();
+
     // Identify pins
     let sck = peripherals.GPIO8;
     let mosi = peripherals.GPIO10;
-    let cs = Output::new(peripherals.GPIO20, Level::Low);
-    let dc = Output::new(peripherals.GPIO9, Level::Low);
-    let busy = Input::new(peripherals.GPIO3, Pull::None);
-    let rst = Output::new(peripherals.GPIO2, Level::Low);
+    let cs = Output::new(peripherals.GPIO20, Level::Low, output_config);
+    let dc = Output::new(peripherals.GPIO9, Level::Low, output_config);
+    let busy = Input::new(peripherals.GPIO3, input_config);
+    let rst = Output::new(peripherals.GPIO2, Level::Low, output_config);
 
     // Initialize SPI & EPD
     info!("Initializing display");
-    let spi = Spi::new_with_config(
+    let spi = Spi::new(
         peripherals.SPI2,
-        Config {
-            frequency: 8u32.MHz(),
-            mode: SpiMode::Mode0,
-            ..Config::default()
-        },
+        Config::default()
+            .with_frequency(Rate::from_mhz(8))
+            .with_mode(Mode::_0),
     )
+    .unwrap()
     .with_sck(sck)
     .with_mosi(mosi);
     let mut spi_device = ExclusiveDevice::new(spi, cs, delay).unwrap();

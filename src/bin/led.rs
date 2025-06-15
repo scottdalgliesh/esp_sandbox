@@ -10,19 +10,19 @@ use defmt::info;
 use esp_backtrace as _;
 use esp_hal::{
     delay::Delay,
-    gpio::{Level, Output},
-    prelude::*,
+    gpio::{Level, Output, OutputConfig},
+    main,
 };
 use {defmt_rtt as _, esp_backtrace as _};
 
-#[entry]
+#[main]
 fn main() -> ! {
     // Initialize hardware
     let peripherals = esp_hal::init(esp_hal::Config::default());
     let delay = Delay::new();
 
     // Initialize led
-    let mut led = Output::new(peripherals.GPIO0, Level::High);
+    let mut led = Output::new(peripherals.GPIO0, Level::High, OutputConfig::default());
 
     // Event loop
     loop {
